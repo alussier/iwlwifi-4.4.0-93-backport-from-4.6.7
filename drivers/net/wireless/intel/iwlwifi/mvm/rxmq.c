@@ -322,6 +322,18 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 		if (ieee80211_is_data(hdr->frame_control))
 			iwl_mvm_rx_csum(sta, skb, desc);
+
+		/*
+		 * Our hardware de-aggregates AMSDUs but copies the mac header
+		 * as it to the de-aggregated MPDUs. We need to turn off the
+		 * AMSDU bit in the QoS control ourselves.
+		 */
+		if ((desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU) &&
+		    !WARN_ON(!ieee80211_is_data_qos(hdr->frame_control))) {
+			u8 *qc = ieee80211_get_qos_ctl(hdr);
+
+			*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
+		}
 	}
 
 	rcu_read_unlock();
